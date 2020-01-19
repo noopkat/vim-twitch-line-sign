@@ -25,7 +25,7 @@ function s:addSignToDict(file, line, nick, suggestion, currentIndex)
   call insert(s:currentSigns[a:file][a:line], entry)
 endfunction
 
-function! TwitchLineSignPlaceSign(line, nick, suggestion)
+function! TwitchLineSignPlaceSign(line, nick, suggestion) abort
   let file = @%
   call s:addSignToDict(file, a:line, a:nick, a:suggestion, s:currentIndex)
   exe "sign place " . s:currentIndex . " line=" . a:line . " name="  . s:signGroupName
@@ -33,7 +33,7 @@ function! TwitchLineSignPlaceSign(line, nick, suggestion)
   echo ""
 endfunction
 
-function! TwitchLineSignCheckLine()
+function! TwitchLineSignCheckLine() abort
   let file = @%
   let line = line(".")
   let echoString = ""
@@ -50,7 +50,7 @@ function! TwitchLineSignCheckLine()
   echo echoString
 endfunction
 
-function! TwitchLineSignClearAllSigns()
+function! TwitchLineSignClearAllSigns() abort
   for file in keys(s:currentSigns)
     for line in keys(s:currentSigns[file])
       for lineSign in s:currentSigns[file][line] 
@@ -61,7 +61,7 @@ function! TwitchLineSignClearAllSigns()
   let s:currentSigns = {}
 endfunction
 
-function! TwitchLineSignClearSign()
+function! TwitchLineSignClearSign() abort
   let file = @%
   let line = line(".")
 
@@ -72,6 +72,24 @@ function! TwitchLineSignClearSign()
       exe "sign unplace " . lineSign.index
     endfor
     let s:currentSigns[file][line] = []
+  endif
+endfunction
+
+function! s:Callback(channel, msg) abort
+  call TwitchLineSignPlaceSign(a:msg.line, a:msg.nick, a:msg.suggestion)
+endfunction
+
+function! TwitchLineSignChatConnect() abort
+  let g:twitch_chat_connection = ch_open('localhost:6969', {
+        \ 'mode': 'json',
+        \ 'callback': function('s:Callback'),
+        \ })
+endfunction
+
+function! TwitchLineSignChatDisconnect() abort
+  if exists('g:twitch_chat_connection')
+    call ch_close(g:twitch_chat_connection)
+    unlet g:twitch_chat_connection
   endif
 endfunction
 
