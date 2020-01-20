@@ -50,47 +50,59 @@ function! TwitchLineSignCheckLine() abort
   echo echoString
 endfunction
 
-function! TwitchLineSignClearAllSigns() abort
-  for file in keys(s:currentSigns)
-    for line in keys(s:currentSigns[file])
-      for lineSign in s:currentSigns[file][line] 
-        exe "sign unplace " . lineSign.index
-      endfor
-    endfor
-  endfor
-  let s:currentSigns = {}
-endfunction
-
-function! TwitchLineSignClearSign() abort
+function! TwitchLineSignClear(line1, line2) abort
   let file = @%
   let line = line(".")
 
-  if has_key(s:currentSigns, file) && has_key(s:currentSigns[file], line)
-    let fileSigns = get(s:currentSigns, file)
-    let fileLineSigns = get(fileSigns, line)
-    for lineSign in fileLineSigns 
-      exe "sign unplace " . lineSign.index
-    endfor
-    let s:currentSigns[file][line] = []
-  endif
+  for line in range(a:line1, a:line2)
+    if has_key(s:currentSigns, file) && has_key(s:currentSigns[file], line)
+      let fileSigns = get(s:currentSigns, file)
+      let fileLineSigns = get(fileSigns, line)
+      for lineSign in fileLineSigns
+        exe "sign unplace " . lineSign.index
+      endfor
+      call remove(s:currentSigns[file], line)
+    endif
+  endfor
+  return ''
+endfunction
+
+function! TwitchLineSignClearAllSigns() abort
+  return TwitchLineSignClearSigns(1, line("$"))
+endfunction
+
+function! TwitchLineSignClearSign() abort
+  return TwitchLineSignClearSigns(line("."), line("."))
 endfunction
 
 function! s:Callback(channel, msg) abort
   call TwitchLineSignPlaceSign(a:msg.line, a:msg.nick, a:msg.suggestion)
 endfunction
 
-function! TwitchLineSignChatConnect() abort
-  let g:twitch_chat_connection = ch_open('localhost:6969', {
+function! TwitchLineSignChatConnect(...) abort
+  let host_port = a:0 ? a:1 : 'localhost:6969'
+  let ch = ch_open(host_port, {
         \ 'mode': 'json',
         \ 'callback': function('s:Callback'),
         \ })
+  if ch_status(ch) ==# 'open'
+    let g:twitch_chat_connection = ch
+    echo 'Connected'
+    return ''
+  else
+    return 'echoerr ' . string('Failed to connect')
+  endif
 endfunction
 
 function! TwitchLineSignChatDisconnect() abort
   if exists('g:twitch_chat_connection')
     call ch_close(g:twitch_chat_connection)
     unlet g:twitch_chat_connection
+    echo 'Disconnected'
+  else
+    echo 'No connection'
   endif
+  return ''
 endfunction
 
 augroup twitch
@@ -98,3 +110,6 @@ augroup twitch
   autocmd CursorMoved * call TwitchLineSignCheckLine() 
 augroup END
 
+command! -bar -nargs=? TwitchLineSignChatConnect    execute TwitchLineSignChatConnect(<f-args>)
+command! -bar          TwitchLineSignChatDisconnect execute TwitchLineSignChatDisconnect()
+command! -bar -range   TwitchLineSignClear          execute TwitchLineSignClear(<line1>, <line2>)
