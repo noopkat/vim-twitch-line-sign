@@ -50,29 +50,29 @@ function! TwitchLineSignCheckLine() abort
   echo echoString
 endfunction
 
-function! TwitchLineSignClearAllSigns() abort
-  for file in keys(s:currentSigns)
-    for line in keys(s:currentSigns[file])
-      for lineSign in s:currentSigns[file][line] 
-        exe "sign unplace " . lineSign.index
-      endfor
-    endfor
-  endfor
-  let s:currentSigns = {}
-endfunction
-
-function! TwitchLineSignClearSign() abort
+function! TwitchLineSignClear(line1, line2) abort
   let file = @%
   let line = line(".")
 
-  if has_key(s:currentSigns, file) && has_key(s:currentSigns[file], line)
-    let fileSigns = get(s:currentSigns, file)
-    let fileLineSigns = get(fileSigns, line)
-    for lineSign in fileLineSigns 
-      exe "sign unplace " . lineSign.index
-    endfor
-    let s:currentSigns[file][line] = []
-  endif
+  for line in range(a:line1, a:line2)
+    if has_key(s:currentSigns, file) && has_key(s:currentSigns[file], line)
+      let fileSigns = get(s:currentSigns, file)
+      let fileLineSigns = get(fileSigns, line)
+      for lineSign in fileLineSigns
+        exe "sign unplace " . lineSign.index
+      endfor
+      call remove(s:currentSigns[file], line)
+    endif
+  endfor
+  return ''
+endfunction
+
+function! TwitchLineSignClearAllSigns() abort
+  return TwitchLineSignClearSigns(1, line("$"))
+endfunction
+
+function! TwitchLineSignClearSign() abort
+  return TwitchLineSignClearSigns(line("."), line("."))
 endfunction
 
 function! s:Callback(channel, msg) abort
@@ -112,3 +112,4 @@ augroup END
 
 command! -bar -nargs=? TwitchLineSignChatConnect    execute TwitchLineSignChatConnect(<f-args>)
 command! -bar          TwitchLineSignChatDisconnect execute TwitchLineSignChatDisconnect()
+command! -bar -range   TwitchLineSignClear          execute TwitchLineSignClear(<line1>, <line2>)
